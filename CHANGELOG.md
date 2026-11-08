@@ -2,6 +2,14 @@
 
 Versioni nel formato **Major.Minor.Patch**: Major = cambi grossi o incompatibili, Minor = nuove funzioni, Patch = correzioni.
 
+## v1.2.0 — 2026-11-08
+- Schede con sfondo personalizzato: una foto o un collage fino a 6 foto, con oscuramento e sfocatura
+- Font, dimensione e colore separati per titolo e sottotitolo (su tutte le clip)
+- Nuova clip **Intro del canale**: logo con onda d'urto, nome che si scrive, 3 stili (Neon, Cinema, Viaggio)
+- Nuova clip **Finale** stile schermata finale YouTube: riquadri per i video consigliati e cerchio Iscriviti
+- Effetti sonori sintetizzati: pop, clic, Mi piace, Iscritto e campanella; whoosh e impatto nell'intro
+- Toccando i brani nella timeline si apre la scheda Musica
+
 ## v1.1.0 — 2026-11-08
 - Logo del canale in sovraimpressione in un angolo (PNG trasparenti supportati)
 - Forma originale, cerchio o quadrato arrotondato · dimensione, opacità e bagliore neon

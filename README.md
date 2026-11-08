@@ -7,9 +7,9 @@ Web app per creare video YouTube (travel blog e non solo) da foto, video e music
 ## Cosa fa
 - Timeline di foto e video, riordinabile
 - 13 transizioni (tendina neon, glitch GPverse, zoom, cerchio…) ed effetto Ken Burns
-- Testi animati e schede titolo
+- Testi animati, schede titolo con sfondo foto/collage, intro del canale e clip finale
 - Colonna sonora con fade, loop e abbassamento automatico
-- Pulsante **Iscriviti** animato (Mi piace → Iscritto → campanella)
+- Pulsante **Iscriviti** animato e sonoro (Mi piace → Iscritto → campanella)
 - Logo del canale in sovraimpressione
 - Formati 16:9, Shorts 9:16, 1:1 fino a 1440p · export MP4/WebM + copertina PNG
 
