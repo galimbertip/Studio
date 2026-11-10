@@ -2,6 +2,16 @@
 
 Versioni nel formato **Major.Minor.Patch**: Major = cambi grossi o incompatibili, Minor = nuove funzioni, Patch = correzioni.
 
+## v1.3.0 — 2026-11-10 · "Editor vero"
+- ✂ Dividi le clip alla testina (pulsante o tasto S)
+- Velocità video da 0,25× a 4×
+- Scheda **Livelli**: testi liberi, emoji e immagini PNG con tempi propri, trascinabili sull'anteprima
+- Stili testo: riquadro, ombra, contorno, neon, evidenziatore · animazioni pop, sale, macchina da scrivere
+- 🎙 Voce fuori campo registrata dal microfono (o da file), con abbassamento automatico della musica
+- ⚡ Export veloce WebCodecs (H.264/VP9 + AAC/Opus in MP4) che funziona anche in background; il tempo reale resta come alternativa
+- Corsia dei livelli sotto la timeline con testina di riproduzione
+- Include [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) v5.2.2 (MIT) per creare i file MP4
+
 ## v1.2.0 — 2026-11-08
 - Schede con sfondo personalizzato: una foto o un collage fino a 6 foto, con oscuramento e sfocatura
 - Font, dimensione e colore separati per titolo e sottotitolo (su tutte le clip)
