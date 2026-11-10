@@ -2,6 +2,14 @@
 
 Versioni nel formato **Major.Minor.Patch**: Major = cambi grossi o incompatibili, Minor = nuove funzioni, Patch = correzioni.
 
+## v1.4.0 — 2026-11-10 · "Sottotitoli AI"
+- ✨ Sottotitoli automatici con Whisper (transformers.js) eseguito sul dispositivo: nessun upload, nessun credito
+- Modelli Tiny / Base / Small / Turbo (WebGPU), 6 lingue + rilevamento automatico
+- 5 stili animati: Karaoke, Riquadro sulla parola, Pop, Neon GPverse, Classico TV
+- Righe modificabili, ritardo regolabile, parole per riga, MAIUSCOLO
+- Importa/esporta SRT e VTT, copia negli appunti
+- ✂ Taglio automatico dei silenzi nei video (jump-cut)
+
 ## v1.3.0 — 2026-11-10 · "Editor vero"
 - ✂ Dividi le clip alla testina (pulsante o tasto S)
 - Velocità video da 0,25× a 4×

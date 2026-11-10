@@ -6,6 +6,7 @@ Web app per creare video YouTube (travel blog e non solo) da foto, video e music
 
 ## Cosa fa
 - Timeline di foto e video: riordina, dividi (✂), velocità 0,25×–4×
+- ✨ Sottotitoli automatici in locale (Whisper) con stili animati, SRT, taglio dei silenzi
 - Livelli liberi: testi, emoji e PNG trascinabili · voce fuori campo dal microfono
 - 13 transizioni (tendina neon, glitch GPverse, zoom, cerchio…) ed effetto Ken Burns
 - Testi animati, schede titolo con sfondo foto/collage, intro del canale e clip finale
@@ -23,4 +24,5 @@ Formato `Major.Minor.Patch` — vedi [CHANGELOG.md](CHANGELOG.md) e il file `VER
 La versione è visibile anche nell'app (badge in alto).
 
 ## Crediti
+- [Transformers.js](https://github.com/huggingface/transformers.js) © Hugging Face, Apache-2.0 (caricato da CDN solo quando generi i sottotitoli) e modelli Whisper di OpenAI (MIT)
 - [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) © Vanilagy, licenza MIT (incluso in `index.html`)

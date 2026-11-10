@@ -154,6 +154,7 @@ code{background:var(--panel2);padding:1px 5px;border-radius:5px}
     <nav class="tabs" id="tabs">
       <button data-tab="clip" class="on">Clip</button>
       <button data-tab="layers">Livelli</button>
+      <button data-tab="capt">Sottotitoli</button>
       <button data-tab="style">Stile</button>
       <button data-tab="music">Musica</button>
       <button data-tab="sub">Iscriviti</button>
@@ -176,8 +177,15 @@ If you want to offset all timestamps of a track such that the first one is zero,
 <script>
 'use strict';
 /* ================= VERSIONE (Major.Minor.Patch) ================= */
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 const CHANGELOG = [
+  {v:'1.4.0', d:'2026-11-10', items:[
+    'Sottotitoli automatici con Whisper sul tuo dispositivo: niente upload, niente crediti',
+    '5 stili animati: Karaoke, Riquadro sulla parola, Pop una parola alla volta, Neon GPverse, Classico TV',
+    'Righe modificabili a mano, ritardo regolabile, parole per riga e MAIUSCOLO',
+    'Importa ed esporta file SRT (per YouTube) e copia negli appunti',
+    'Taglio automatico dei silenzi nei video (stile jump-cut), sul video selezionato o su tutti'
+  ]},
   {v:'1.3.0', d:'2026-11-10', items:[
     'Dividi le clip nel punto della testina (✂ o tasto S): per tagliare un pezzo dividi due volte ed elimina',
     'Velocità dei video da 0,25× (slow motion) a 4× (timelapse)',
@@ -277,9 +285,11 @@ function defaultProject(){return{
   wm:{enabled:false,text:'@paoloinfuga',pos:'tr'},
   logo:{enabled:true,media:null,pos:'tr',size:12,opacity:0.85,shape:'orig',glow:false},
   defaults:{dur:4,trans:'fade',transDur:0.8},
-  exp:{mute:false,mode:'fast',recMute:true}
+  exp:{mute:false,mode:'fast',recMute:true},
+  capt:{on:true,style:'karaoke',font:'Montserrat',size:72,color:'#ffffff',hl:'#ffd400',y:0.78,upper:true,maxWords:4,offset:0,lang:'it',model:'base',lines:[]},
+  sil:{db:30,min:0.6}
 }}
-function mergeProject(p){const d=defaultProject();const o=Object.assign(d,p||{});o.sub=Object.assign(defaultProject().sub,p&&p.sub);o.wm=Object.assign(defaultProject().wm,p&&p.wm);o.logo=Object.assign(defaultProject().logo,p&&p.logo);o.defaults=Object.assign(defaultProject().defaults,p&&p.defaults);o.exp=Object.assign(defaultProject().exp,p&&p.exp);o.clips=(o.clips||[]).map(normClip);o.music=(o.music||[]);o.overlays=o.overlays||[];o.voice=o.voice||[];return o}
+function mergeProject(p){const d=defaultProject();const o=Object.assign(d,p||{});o.sub=Object.assign(defaultProject().sub,p&&p.sub);o.wm=Object.assign(defaultProject().wm,p&&p.wm);o.logo=Object.assign(defaultProject().logo,p&&p.logo);o.defaults=Object.assign(defaultProject().defaults,p&&p.defaults);o.exp=Object.assign(defaultProject().exp,p&&p.exp);o.capt=Object.assign(defaultProject().capt,p&&p.capt);o.sil=Object.assign(defaultProject().sil,p&&p.sil);o.clips=(o.clips||[]).map(normClip);o.music=(o.music||[]);o.overlays=o.overlays||[];o.voice=o.voice||[];return o}
 let P=defaultProject();
 const media=new Map();
 const RT=new Map();
@@ -681,6 +691,44 @@ function drawOverlay(ctx,o,lt,W,H){
       ctx.fillStyle=o.color||'#fff';ctx.fillText(l,0,y);ctx.shadowBlur=0})}
   if(!exporting&&tab==='layers'&&o.id===selOv&&bw){ctx.globalAlpha=1;ctx.setLineDash([10*u,8*u]);ctx.lineWidth=3*u;ctx.strokeStyle='#00e5ff';ctx.strokeRect(-bw/2-8*u,-bh/2-8*u,bw+16*u,bh+16*u);ctx.setLineDash([])}
   ctx.restore();if(bw)ovBoxes.set(o.id,{x:cx-bw*sc/2-10,y:cy-bh*sc/2-10,w:bw*sc+20,h:bh*sc+20})}
+/* ================= SOTTOTITOLI ================= */
+const CSTYLES={karaoke:'Karaoke (parola evidenziata)',box:'Riquadro sulla parola',pop:'Pop (una parola alla volta)',neon:'Neon GPverse',classic:'Classico TV'};
+function drawCapt(ctx,t,W,H){const C=P.capt;if(!C.on||!C.lines.length)return;const tt=t-(C.offset||0);const L=C.lines.find(l=>tt>=l.t0&&tt<=l.t1);if(!L||!L.words.length)return;
+  const u=Math.min(W,H)/1080,size=C.size*u,fw=fontW(C.font);ctx.save();ctx.textBaseline='middle';ctx.textAlign='left';ctx.lineJoin='round';
+  const words=L.words.map(w=>({...w,s:C.upper?w.w.toUpperCase():w.w}));let cur=-1;words.forEach((w,i)=>{if(tt>=w.t0)cur=i});
+  const fade=Math.min(clamp((tt-L.t0)/0.12),clamp((L.t1-tt)/0.1));
+  if(C.style==='pop'){const i=Math.max(0,cur),w=words[i],k=clamp((tt-w.t0)/0.18),sc=0.55+0.45*backOut(k),bs=size*1.45;ctx.font=F(fw,bs,C.font);ctx.textAlign='center';ctx.translate(W/2,H*C.y);ctx.scale(sc,sc);ctx.globalAlpha=fade;
+    ctx.lineWidth=bs*0.16;ctx.strokeStyle='#000';ctx.strokeText(w.s,0,0);ctx.fillStyle=i%3===1?C.hl:C.color;ctx.fillText(w.s,0,0);ctx.restore();return}
+  ctx.font=F(fw,size,C.font);const sp=ctx.measureText(' ').width+size*(C.style==='box'?0.4:0.2),maxW=W*0.86,rows=[[]];let rw=0;
+  for(const w of words){w.wd=ctx.measureText(w.s).width;if(rw+w.wd>maxW&&rows[rows.length-1].length){rows.push([]);rw=0}rows[rows.length-1].push(w);rw+=w.wd+sp}
+  const lh=size*1.28,th=rows.length*lh;let y=H*C.y-th/2+lh/2;ctx.globalAlpha=fade;
+  if(C.style==='classic'){const bw=Math.max(...rows.map(r=>r.reduce((a,w)=>a+w.wd+sp,0)-sp))+size*0.9;rr(ctx,(W-bw)/2,y-lh/2-size*0.12,bw,th+size*0.24,size*0.22);ctx.fillStyle='rgba(0,0,0,.62)';ctx.fill()}
+  for(const r of rows){const rwid=r.reduce((a,w)=>a+w.wd+sp,0)-sp;let x=(W-rwid)/2;
+    for(const w of r){const idx=words.indexOf(w),act=idx===cur&&C.style!=='classic';ctx.save();ctx.translate(x+w.wd/2,y);
+      if(act){const k=clamp((tt-w.t0)/0.15);const sc=1.1-0.04*k;ctx.scale(sc,sc)}
+      if(C.style==='box'&&act){rr(ctx,-w.wd/2-size*0.18,-size*0.62,w.wd+size*0.36,size*1.22,size*0.22);ctx.fillStyle=C.hl;ctx.fill()}
+      let col=C.color;
+      if(C.style==='neon'){ctx.shadowColor=act?'#00e5ff':'#b14dff';ctx.shadowBlur=size*(act?0.7:0.35);col=act?'#c8fbff':C.color}
+      else if(C.style!=='classic'){ctx.lineWidth=size*0.17;ctx.strokeStyle='rgba(0,0,0,.92)';ctx.strokeText(w.s,-w.wd/2,0)}
+      if(C.style==='karaoke'){if(act)col=C.hl;else if(idx>cur)ctx.globalAlpha*=0.88}
+      if(C.style==='box'&&act)col='#111111';
+      ctx.fillStyle=col;ctx.fillText(w.s,-w.wd/2,0);ctx.restore();x+=w.wd+sp}
+    y+=lh}
+  ctx.restore()}
+function wordsFromText(text,t0,t1){const ws=String(text).trim().split(/\s+/).filter(Boolean);if(!ws.length)return[];const tot=ws.reduce((a,w)=>a+w.length+1,0);let t=t0;const span=Math.max(0.1,t1-t0);
+  return ws.map(w=>{const d=span*(w.length+1)/tot;const o={w,t0:t,t1:t+d};t+=d;return o})}
+function groupWords(words,maxW){const lines=[];let cur=[];const push=()=>{if(cur.length){lines.push({id:uid(),t0:cur[0].t0,t1:cur[cur.length-1].t1,words:cur});cur=[]}};
+  for(const w of words){const pv=cur[cur.length-1];if(pv&&w.t0-pv.t1>0.7)push();cur.push(w);const ch=cur.reduce((a,x)=>a+x.w.length+1,0);if(cur.length>=maxW||/[.!?…]$/.test(w.w)||ch>34)push()}push();
+  lines.forEach((l,i)=>{const nx=lines[i+1];l.t1=Math.max(l.t1,Math.min(l.t1+0.4,nx?nx.t0:l.t1+0.4))});return lines}
+function allWords(){return P.capt.lines.flatMap(l=>l.words)}
+function setLineText(i,text){const l=P.capt.lines[i];if(!l)return;l.words=wordsFromText(text,l.t0,l.t1)}
+function pad(n,k=2){return String(n).padStart(k,'0')}
+function srtTime(s){s=Math.max(0,s);let ms=Math.round(s*1000);const h=Math.floor(ms/3600000);ms-=h*3600000;const m=Math.floor(ms/60000);ms-=m*60000;const sc=Math.floor(ms/1000);ms-=sc*1000;return`${pad(h)}:${pad(m)}:${pad(sc)},${pad(ms,3)}`}
+function buildSRT(){const o=P.capt.offset||0;return P.capt.lines.map((l,i)=>`${i+1}\n${srtTime(l.t0+o)} --> ${srtTime(l.t1+o)}\n${l.words.map(w=>w.w).join(' ')}\n`).join('\n')}
+function parseTime(x){x=x.trim().replace(',','.');const p=x.split(':').map(Number);if(p.some(isNaN))return NaN;return p.length===3?p[0]*3600+p[1]*60+p[2]:p.length===2?p[0]*60+p[1]:p[0]}
+function parseSRT(txt){const out=[];for(const b of String(txt).replace(/\r/g,'').split(/\n\s*\n/)){const ls=b.split('\n').map(x=>x.trim()).filter(Boolean);const ti=ls.findIndex(x=>x.includes('-->'));if(ti<0)continue;
+  const [a,c]=ls[ti].split('-->');const t0=parseTime(a),t1=parseTime(c.split(' ').filter(Boolean)[0]||'');const text=ls.slice(ti+1).join(' ').replace(/<[^>]+>/g,'').replace(/\{[^}]+\}/g,'').trim();
+  if(isNaN(t0)||isNaN(t1)||!text)continue;out.push({id:uid(),t0,t1,words:wordsFromText(text,t0,t1)})}return out}
 let lastLogo=null;
 function drawLogo(ctx,W,H,t){
   const L=P.logo,m=L.media&&media.get(L.media);if(!L.enabled||!m||!m.el)return null;
@@ -701,7 +749,7 @@ function postFx(ctx,W,H,t){
   if(P.grain){if(!grainPat){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');const d=g.createImageData(256,256);for(let i=0;i<d.data.length;i+=4){const v=Math.random()*255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255}g.putImageData(d,0,0);grainPat=ctx.createPattern(c,'repeat')}
     ctx.save();ctx.globalAlpha=0.07;ctx.globalCompositeOperation='overlay';const ox=Math.floor(rnd(Math.floor(t*24))*256),oy=Math.floor(rnd(Math.floor(t*24)+9)*256);ctx.translate(-ox,-oy);ctx.fillStyle=grainPat;ctx.fillRect(0,0,W+256,H+256);ctx.restore()}
   const lb=lbH(W,H);if(lb>0){ctx.fillStyle='#000';ctx.fillRect(0,0,W,lb);ctx.fillRect(0,H-lb,W,lb)}
-  drawOverlays(ctx,t,W,H);
+  drawOverlays(ctx,t,W,H);drawCapt(ctx,t,W,H);
   const lg=drawLogo(ctx,W,H,t);lastLogo=lg;
   if(P.wm.enabled&&P.wm.text){const sh=lg&&lg.pos===P.wm.pos?lg.w+18*u:0;ctx.save();ctx.globalAlpha=0.65;ctx.font=F('700',30*u,'Inter');ctx.fillStyle='#fff';ctx.shadowColor='rgba(0,0,0,.7)';ctx.shadowBlur=8*u;const p=P.wm.pos||'tr';ctx.textAlign=p[1]==='l'?'left':'right';ctx.textBaseline=p[0]==='t'?'top':'bottom';ctx.fillText(P.wm.text,p[1]==='l'?40*u+sh:W-40*u-sh,p[0]==='t'?40*u+lb:H-40*u-lb);ctx.restore()}
   for(const st of LAY.subs){const s=t-st;if(s>=0&&s<=SUB_DUR)drawSubscribe(ctx,s,W,H)}}
@@ -798,6 +846,7 @@ function tabClip(){
   let t=row('Durata',rng('data-c="dur"',Math.min(c.dur,maxD),0.5,maxD,0.1,'s'));
   if(c.type==='video'&&m)t+=row('Velocità',selBox('data-c="speed"',c.speed||1,{0.25:'0,25× super slow',0.5:'0,5× slow motion',0.75:'0,75×',1:'1× normale',1.25:'1,25×',1.5:'1,5×',2:'2× veloce',3:'3×',4:'4× timelapse'},true))+row('Inizia da',rng('data-c="trimIn"',c.trimIn||0,0,Math.max(0,Math.floor((m.duration-0.5)*10)/10),0.1,'s'))+row('Volume audio',rng('data-c="vol"',c.vol??1,0,1.5,0.05));
   if(c.type==='outro')t+='<p class="hint">La schermata finale di YouTube dura da 5 a 20 secondi: tieni la clip in questo intervallo.</p>';
+  if(c.type==='video')t+='<button class="btn sm" data-act="silOne" style="margin-top:6px">✂ Taglia i silenzi di questo video</button>';
   h+=sec('Tempo',t);
   if(c.type==='intro')h+=sec('Intro',row('Stile',selBox('data-c="tpl"',c.tpl,{neon:'Neon GPverse',cinema:'Cinema elegante',photo:'Viaggio (con foto)'}))+row('Effetti sonori',chk('data-c="sfx"',c.sfx!==false))+'<p class="hint">Usa il logo del canale (scheda Stile) o l\'avatar (scheda Iscriviti). Testo = nome del canale, sottotitolo = slogan.</p>');
   if(c.type==='outro')h+=sec('Schermata finale',row('Riquadri',chk('data-c="endEls"',c.endEls!==false))+row('Effetti sonori',chk('data-c="sfx"',c.sfx!==false))+'<p class="hint">I riquadri tratteggiati mostrano dove mettere, in YouTube Studio, gli elementi della schermata finale (2 video + Iscriviti).</p>');
@@ -841,6 +890,69 @@ async function toggleRec(){if(recState){recState.mr.stop();return}
     const blob=new Blob(chunks,{type:mr.mimeType||'audio/webm'});if(blob.size<2000){toast('Registrazione vuota');renderInsp();return}
     const ext=(mr.mimeType||'').includes('mp4')?'m4a':'webm';await handleFiles([new File([blob],`voce_${fmtT(startT).replace(/[:.]/g,'-')}.${ext}`,{type:blob.type})],{voice:true,at:startT});if(tab!=='layers')setTab('layers');else renderInsp()};
   ensureAudio();if(P.exp.recMute!==false&&monitor)monitor.gain.value=0;mr.start(250);play();renderInsp();toast('● Registrazione in corso: parla! Premi Stop per finire')}
+const ASR_MODELS={tiny:['onnx-community/whisper-tiny','Tiny · ~40 MB · veloce, meno preciso'],base:['onnx-community/whisper-base','Base · ~80 MB · equilibrato'],small:['onnx-community/whisper-small','Small · ~250 MB · consigliato per l\'italiano'],turbo:['onnx-community/whisper-large-v3-turbo','Turbo · ~800 MB · il più preciso (serve WebGPU)']};
+const ASR_LANG={it:'italian',en:'english',es:'spanish',fr:'french',de:'german',pt:'portuguese',auto:''};
+const TF_URL='https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js';
+const ASR_WORKER=`let asr=null,key='';
+self.onmessage=async e=>{const d=e.data;try{const T=await import(d.url);T.env.allowLocalModels=false;
+  const k=d.model+d.device;if(!asr||key!==k){self.postMessage({type:'status',msg:'Carico il modello…'});asr=await T.pipeline('automatic-speech-recognition',d.model,{device:d.device,dtype:d.dtype,progress_callback:p=>self.postMessage({type:'progress',p})});key=k}
+  self.postMessage({type:'status',msg:'Trascrivo…'});const o={chunk_length_s:30,stride_length_s:5,task:'transcribe',return_timestamps:'word'};if(d.language)o.language=d.language;
+  let out,word=true;try{out=await asr(d.audio,o)}catch(er){word=false;o.return_timestamps=true;out=await asr(d.audio,o)}
+  self.postMessage({type:'done',word,text:out.text,chunks:(out.chunks||[]).map(c=>({text:c.text,timestamp:c.timestamp}))})}catch(er){self.postMessage({type:'error',msg:String(er&&er.message||er)})}};`;
+let asrWorker=null,asrBusy=false;
+async function renderSpeech(){const total=LAY.total,SR=16000,off=new OfflineAudioContext(1,Math.max(1,Math.ceil(total*SR)),SR);let n=0;
+  for(const it of LAY.items){const c=it.c;if(c.type!=='video'||!(c.vol>0))continue;const m=media.get(c.mediaId);if(!m)continue;const buf=await videoAudioBuffer(m);if(!buf)continue;const sp=c.speed||1,o0=c.trimIn||0;if(o0>=buf.duration)continue;
+    const s=off.createBufferSource();s.buffer=buf;s.playbackRate.value=sp;s.connect(off.destination);s.start(it.start,o0,Math.min(c.dur*sp,buf.duration-o0));n++}
+  for(const v of P.voice){const md=media.get(v.mediaId);if(!md||!md.buffer||v.start>=total)continue;const s=off.createBufferSource();s.buffer=md.buffer;s.connect(off.destination);s.start(v.start);n++}
+  if(!n)return null;return(await off.startRendering()).getChannelData(0)}
+function asrSetProg(txt,k){const e=$('#asrTxt');if(e)e.textContent=txt;const b=$('#asrBar');if(b&&k!=null)b.style.width=(k*100).toFixed(0)+'%'}
+async function runASR(){if(asrBusy)return;if(!P.clips.length){toast('Aggiungi prima qualche clip');return}
+  asrBusy=true;renderInsp();asrSetProg('Preparo l\'audio del parlato…',0.02);
+  try{const audio=await renderSpeech();if(!audio){throw new Error('Non c\'è parlato: servono video con audio o una voce fuori campo (oppure importa un SRT)')}
+    let device='wasm';try{if(navigator.gpu&&await navigator.gpu.requestAdapter())device='webgpu'}catch(e){}
+    let mk=P.capt.model;if(mk==='turbo'&&device!=='webgpu'){mk='small';toast('WebGPU non disponibile: uso il modello Small')}
+    const dtype=device==='webgpu'?{encoder_model:'fp32',decoder_model_merged:'q4'}:'q8';
+    let res;
+    if(window.__asrMock)res=await window.__asrMock(audio);
+    else res=await new Promise((resolve,reject)=>{if(!asrWorker)asrWorker=new Worker(URL.createObjectURL(new Blob([ASR_WORKER],{type:'text/javascript'})),{type:'module'});
+      const files={};asrWorker.onmessage=e=>{const d=e.data;
+        if(d.type==='progress'&&d.p){if(d.p.status==='progress'&&d.p.file){files[d.p.file]=[d.p.loaded||0,d.p.total||0];const L=Object.values(files).reduce((a,x)=>a+x[0],0),T=Object.values(files).reduce((a,x)=>a+x[1],0);asrSetProg(`Scarico il modello (solo la prima volta)… ${(L/1048576).toFixed(0)}/${(T/1048576).toFixed(0)} MB`,T?0.05+0.6*L/T:null)}}
+        else if(d.type==='status')asrSetProg(d.msg+(d.msg.startsWith('Trascrivo')?` (${device==='webgpu'?'GPU':'CPU'}, può volerci un po')`:''),d.msg.startsWith('Trascrivo')?0.7:null);
+        else if(d.type==='done')resolve(d);else if(d.type==='error')reject(new Error(d.msg))};
+      asrWorker.onerror=e=>reject(new Error(e.message||'worker'));
+      asrWorker.postMessage({url:TF_URL,model:ASR_MODELS[mk][0],device,dtype,language:ASR_LANG[P.capt.lang]||'',audio},[audio.buffer])});
+    let words=[];for(const ch of res.chunks||[]){const t0=ch.timestamp?.[0]??0,t1=ch.timestamp?.[1]??t0+1;const txt=String(ch.text||'').trim();if(!txt)continue;
+      if(res.word&&!/\s/.test(txt))words.push({w:txt,t0,t1:Math.max(t1,t0+0.08)});else words.push(...wordsFromText(txt,t0,Math.max(t1,t0+0.3)))}
+    if(!words.length)throw new Error('Nessuna parola riconosciuta');
+    pushUndo();P.capt.lines=groupWords(words,P.capt.maxWords);P.capt.on=true;changed(false);toast(`Sottotitoli creati: ${P.capt.lines.length} righe ✓`)}
+  catch(e){console.warn(e);const m=String(e.message||e);toast(/fetch|network|Failed|import|CSP|NetworkError|^worker$/i.test(m)?'Non riesco a scaricare il modello qui: apri Studio da GitHub Pages o dal file sul PC (serve internet la prima volta)':m,true)}
+  finally{asrBusy=false;renderInsp()}}
+async function cutSilences(list){let removed=0,done=0;const thr=P.sil.db||30,minS=P.sil.min||0.6,padS=0.12;
+  for(const c of list){if(c.type!=='video')continue;const m=media.get(c.mediaId);if(!m)continue;const buf=await videoAudioBuffer(m);if(!buf)continue;
+    const sp=c.speed||1,a=c.trimIn||0,b=Math.min(buf.duration,a+c.dur*sp),SR=buf.sampleRate,win=Math.round(SR*0.05);const chs=[...Array(buf.numberOfChannels)].map((_,i)=>buf.getChannelData(i));
+    const db=[];for(let s0=Math.floor(a*SR);s0<Math.floor(b*SR);s0+=win){let e=0,n=0;for(let i=s0;i<Math.min(s0+win,chs[0].length);i++){let v=0;for(const ch of chs)v+=ch[i];v/=chs.length;e+=v*v;n++}db.push(10*Math.log10(e/Math.max(1,n)+1e-12))}
+    const peak=Math.max(...db);const silent=db.map(x=>x<peak-thr);const keep=[];let st=null;
+    for(let i=0;i<=silent.length;i++){const sil=i===silent.length||silent[i];if(!sil&&st===null)st=i;if(sil&&st!==null){keep.push([st,i]);st=null}}
+    const segs=[];for(const [i0,i1] of keep){let s0=a+i0*0.05-padS,s1=a+i1*0.05+padS;s0=Math.max(a,s0);s1=Math.min(b,s1);if(segs.length&&s0-segs[segs.length-1][1]<minS)segs[segs.length-1][1]=s1;else segs.push([s0,s1])}
+    const fin=segs.filter(x=>x[1]-x[0]>=0.25);if(!fin.length||(fin.length===1&&fin[0][0]-a<0.05&&b-fin[0][1]<0.05))continue;
+    const idx=P.clips.indexOf(c);const parts=fin.map((sg,k)=>{const n=JSON.parse(JSON.stringify(c));n.id=uid();n.trimIn=Math.round(sg[0]*100)/100;n.dur=Math.round((sg[1]-sg[0])/sp*100)/100;if(k>0){n.trans='cut';if(n.caption)n.caption.text=''}return n});
+    removed+=c.dur-parts.reduce((x,n)=>x+n.dur,0);P.clips.splice(idx,1,...parts);done++}
+  return{removed,done}}
+async function doCutSilences(all){const list=all?P.clips.filter(c=>c.type==='video'):[getSel()].filter(Boolean);if(!list.length){toast('Nessun video da analizzare');return}
+  toast('Analizzo l\'audio…',true);pushUndo();const r=await cutSilences(list);
+  if(!r.done){undoStack.pop();toast('Nessun silenzio abbastanza lungo trovato');return}
+  if(selId&&!P.clips.find(c=>c.id===selId))selId=P.clips[0]?.id||null;changed(true);toast(`Tolti ${r.removed.toFixed(1)} s di silenzio da ${r.done} video ✓ (Ctrl+Z per annullare)`)}
+function tabCapt(){const C=P.capt,n=C.lines.length;
+  let h=sec('✨ Genera automaticamente',row('Lingua',selBox('data-p="capt.lang"',C.lang,{it:'Italiano',en:'Inglese',es:'Spagnolo',fr:'Francese',de:'Tedesco',pt:'Portoghese',auto:'Rileva da sola'}))+row('Modello',selBox('data-p="capt.model"',C.model,Object.fromEntries(Object.entries(ASR_MODELS).map(([k,v])=>[k,v[1]]))))
+    +(asrBusy?`<div class="bar"><i id="asrBar" style="width:2%"></i></div><p class="hint" id="asrTxt">Avvio…</p>`:`<button class="btn pri big" data-act="asr">✨ Genera sottotitoli</button>`)
+    +`<p class="hint">Trascrive l'audio dei tuoi video e della voce fuori campo. Il modello si scarica una volta sola e poi lavora <b>sul tuo dispositivo</b>: nessun file viene caricato online. Fai prima i tagli, poi genera i sottotitoli.</p>`);
+  h+=sec('Stile',row('Mostra',chk('data-p="capt.on"',C.on))+row('Stile',selBox('data-p="capt.style"',C.style,CSTYLES))+row('Font',selBox('data-p="capt.font"',C.font,FONT_OBJ))+row('Dimensione',rng('data-p="capt.size"',C.size,30,160,2))
+    +row('Colore',`<input type="color" data-p="capt.color" value="${esc(C.color)}">`)+row('Evidenziato',`<input type="color" data-p="capt.hl" value="${esc(C.hl)}">`)+row('Altezza',rng('data-p="capt.y"',C.y,0.1,0.95,0.01))+row('MAIUSCOLO',chk('data-p="capt.upper"',C.upper))
+    +row('Ritardo',rng('data-p="capt.offset"',C.offset||0,-1.5,1.5,0.05,'s'))+row('Parole per riga',rng('data-p="capt.maxWords"',C.maxWords,1,12,1))+`<button class="btn sm" data-act="regroup" ${n?'':'disabled'}>↻ Riorganizza le righe</button>`);
+  h+=sec('File SRT',`<div class="acts wrap"><label class="btn sm">⬆ Importa SRT/VTT<input type="file" accept=".srt,.vtt,text/plain" data-srt hidden></label><button class="btn sm" data-act="srtSave" ${n?'':'disabled'}>⬇ Esporta SRT</button><button class="btn sm" data-act="srtCopy" ${n?'':'disabled'}>📋 Copia</button>${n?'<button class="btn sm danger" data-act="captClear">Cancella tutto</button>':''}</div><p class="hint">Su YouTube Studio → Sottotitoli puoi caricare l'SRT: così i sottotitoli sono anche ricercabili e traducibili.</p>`);
+  h+=sec('✂ Taglia i silenzi',row('Sensibilità',rng('data-p="sil.db"',P.sil.db,15,45,1,' dB'))+row('Pausa minima',rng('data-p="sil.min"',P.sil.min,0.3,2,0.1,'s'))+`<button class="btn" style="width:100%" data-act="silAll">✂ Taglia i silenzi in tutti i video</button><p class="hint">Toglie le pause dai video parlati (effetto jump-cut). Fallo <b>prima</b> di generare i sottotitoli.</p>`);
+  h+=sec(`Righe (${n})`,n?C.lines.slice(0,300).map((l,i)=>`<div class="mitem" style="flex-wrap:wrap;padding:6px 8px"><button class="btn sm" data-act="lnGo" data-i="${i}" title="Vai">${fmtT(l.t0)}</button><input type="text" data-sl="${i}" value="${esc(l.words.map(w=>w.w).join(' '))}" style="flex:1;min-width:120px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 7px"><button class="btn sm danger" data-act="lnDel" data-i="${i}">✕</button></div>`).join('')+(n>300?`<p class="hint">Mostro le prime 300 righe.</p>`:''):'<p class="hint">Nessun sottotitolo: generali o importa un SRT.</p>');
+  return h}
 function bgPicker(c){const imgs=[...media.values()].filter(m=>m.kind==='image'&&m.id!==P.logo.media&&m.id!==P.sub.avatar);const sel=c.bgIds||[];
   return`<div class="pick">${imgs.map(m=>{const k=sel.indexOf(m.id);return`<button class="pk ${k>=0?'on':''}" data-act="bgToggle" data-mid="${m.id}" title="${esc(m.name)}"><img src="${m.thumb}" alt="">${k>=0?`<b>${k+1}</b>`:''}</button>`}).join('')}<label class="pk" title="Carica foto">＋<input type="file" multiple accept="image/*" data-bgimport hidden></label></div><p class="hint">${sel.length?`${sel.length} foto → ${sel.length>1?'collage':'foto a tutto schermo'}. Tocca per togliere.`:'Tocca le foto da usare come sfondo (fino a 6 = collage). Senza foto si usa la sfumatura di colori.'}</p>`}
 function tabStyle(){return sec('Formato',row('Formato',selBox('data-p="aspect"',P.aspect,{'16:9':'16:9 · YouTube','9:16':'9:16 · Shorts','1:1':'1:1 · Quadrato'}))+row('Risoluzione',selBox('data-p="res"',P.res,{720:'720p',1080:'1080p Full HD',1440:'1440p 2K'},true))+row('FPS',selBox('data-p="fps"',P.fps,{24:'24 cinema',30:'30',60:'60 fluido'},true)))
@@ -872,10 +984,10 @@ function tabExport(){const [W,H]=outSize();const mime=pickMime();const fast=fast
     +`<button class="btn pri big" data-act="export" ${(useFast||mime)&&P.clips.length?'':'disabled'}>⬇ Esporta video</button><p class="hint">${useFast?'⚡ Modalità veloce: il video viene calcolato fotogramma per fotogramma, di solito più in fretta della sua durata, e puoi anche cambiare scheda. Se qualcosa va storto riprova in "Tempo reale".':'Tempo reale: un video di 5 minuti richiede ~5 minuti. Tieni questa scheda <b>in primo piano</b> fino alla fine.'}</p>`)
   +sec('Miniatura YouTube',`<button class="btn" style="width:100%" data-act="png" ${P.clips.length?'':'disabled'}>🖼 Salva il fotogramma attuale in PNG</button><p class="hint">Posiziona la timeline sul momento migliore (magari su una scheda titolo) e salvalo come copertina.</p>`)
   +sec('Progetto',`<div class="kv"><span>Versione app</span><b>GPverse Studio v${APP_VERSION}</b><span>Salvataggio</span><b>automatico in questo browser</b></div>`)}
-function renderInsp(){insp.innerHTML=({clip:tabClip,layers:tabLayers,style:tabStyle,music:tabMusic,sub:tabSub,export:tabExport})[tab]()}
+function renderInsp(){insp.innerHTML=({clip:tabClip,layers:tabLayers,capt:tabCapt,style:tabStyle,music:tabMusic,sub:tabSub,export:tabExport})[tab]()}
 function setTab(t){tab=t;cv.style.touchAction=t==='layers'?'none':'';requestRender();document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));renderInsp()}
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setTab(b.dataset.tab)});
-function onBind(e){const el=e.target;if(!(el.dataset.c||el.dataset.p||el.dataset.mu||el.dataset.o||el.dataset.vo))return;
+function onBind(e){const el=e.target;if(el.dataset.sl!==undefined){if(Date.now()-lastSnap>1500)pushUndo();lastSnap=Date.now();setLineText(+el.dataset.sl,el.value);saveSoon();requestRender();return}if(!(el.dataset.c||el.dataset.p||el.dataset.mu||el.dataset.o||el.dataset.vo))return;
   let v=el.type==='checkbox'?el.checked:(el.type==='range'||el.type==='number'||el.dataset.num!==undefined)?parseFloat(el.value):el.value;if(typeof v==='number'&&isNaN(v))return;
   if(Date.now()-lastSnap>1500)pushUndo();lastSnap=Date.now();
   if(el.dataset.c){const c=getSel();if(!c)return;if(el.dataset.c==='speed'){const old=c.speed||1,m=media.get(c.mediaId);c.dur=Math.round(Math.max(0.3,Math.min(c.dur*old/v,m?(m.duration-(c.trimIn||0))/v:99))*10)/10}setPath(c,el.dataset.c,v);if(el.dataset.c==='tpl'){c.bgfx=v==='neon'?'grid':'none';if(v==='photo'&&!c.bgIds.length)c.bgIds=imgIdsFromClips(4);renderInsp()}if(el.dataset.c==='trimIn'){const m=media.get(c.mediaId);if(m)c.dur=Math.min(c.dur,Math.max(0.5,(m.duration-v)/(c.speed||1)))}}
@@ -894,6 +1006,7 @@ insp.addEventListener('input',onBind);insp.addEventListener('change',e=>{const e
   if(el.matches('input[data-bgimport]')){handleFiles(el.files,{bgFor:selId}).then(()=>renderInsp());el.value='';return}
   if(el.matches('input[data-logo]')){handleFiles(el.files,{logo:true}).then(()=>{renderInsp();requestRender()});el.value='';return}
   if(el.matches('input[data-avatar]')){handleFiles(el.files,{avatar:true}).then(()=>{renderInsp();requestRender()});el.value='';return}
+  if(el.matches('input[data-srt]')){const f=el.files[0];el.value='';if(f)f.text().then(t=>{const L=parseSRT(t);if(!L.length){toast('File SRT non valido');return}pushUndo();P.capt.lines=L;P.capt.on=true;changed(true);toast(`Importate ${L.length} righe ✓`)});return}
   if(el.matches('input[data-ovimg]')){handleFiles(el.files,{ovImg:true}).then(()=>renderInsp());el.value='';return}
   if(el.matches('input[data-voiceimp]')){handleFiles(el.files,{voice:true}).then(()=>renderInsp());el.value='';return}
   if(el.type==='checkbox'||el.tagName==='SELECT'||el.type==='color')onBind(e)});
@@ -909,6 +1022,15 @@ insp.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)r
       else if(a==='ovDup'){const d={...o,id:uid(),start:Math.round((o.start+o.dur)*10)/10};P.overlays.push(d);selOv=d.id}
       else if(a==='ovDel'){P.overlays=P.overlays.filter(x=>x!==o);selOv=null}else if(a==='ovEmo')o.text=b.dataset.e;changed(true);break}
     case'rec':toggleRec();break;
+    case'asr':runASR();break;
+    case'regroup':pushUndo();P.capt.lines=groupWords(allWords(),P.capt.maxWords);changed(true);toast('Righe riorganizzate ✓');break;
+    case'srtSave':{const blob=new Blob([buildSRT()],{type:'text/plain'});const nm=`${slug(P.name)}_sottotitoli.srt`;if(DL){DL.save({filename:nm,data:blob}).then(()=>toast('SRT salvato ✓')).catch(e=>{if(e&&e.code==='rejected_extension')DL.save({filename:nm+'.txt',data:blob}).then(()=>toast('Salvato come .srt.txt: rinominalo in .srt')).catch(()=>{});else if(!(e&&e.code==='declined'))saveFile(nm,blob)})}else saveFile(nm,blob);break}
+    case'srtCopy':navigator.clipboard.writeText(buildSRT()).then(()=>toast('SRT copiato negli appunti ✓')).catch(()=>toast('Copia non riuscita'));break;
+    case'captClear':pushUndo();P.capt.lines=[];changed(true);break;
+    case'lnGo':{const l=P.capt.lines[+b.dataset.i];if(l)seek(l.t0+(P.capt.offset||0)+0.05);break}
+    case'lnDel':pushUndo();P.capt.lines.splice(+b.dataset.i,1);changed(true);break;
+    case'silAll':doCutSilences(true);break;
+    case'silOne':doCutSilences(false);break;
     case'voHere':{const v=P.voice[+b.dataset.i];if(v){pushUndo();v.start=Math.round(playT*100)/100;changed(true)}break}
     case'voPlay':{const v=P.voice[+b.dataset.i];if(v){seek(v.start);if(!playing)play()}break}
     case'voDel':{pushUndo();P.voice.splice(+b.dataset.i,1);changed(true);if(playing)seek(playT);break}
