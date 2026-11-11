@@ -2,6 +2,14 @@
 
 Versioni nel formato **Major.Minor.Patch**: Major = cambi grossi o incompatibili, Minor = nuove funzioni, Patch = correzioni.
 
+## v1.5.0 — 2026-11-11 · "Tutti i formati + Kit del brand"
+- ⚙ Impostazioni divise in schede: Brand, Canale & Social, Export, App
+- Kit del brand (nome, handle, avatar, logo, colori, font, Iscriviti, intro, finale) applicato a ogni nuovo progetto
+- Profili social con controllo dell'indirizzo e hashtag del canale (base per il Social Kit) — nessuna password salvata, per scelta
+- Export multiplo in un clic: 16:9, 9:16, 1:1 e nuovo 4:5 (feed Instagram)
+- Punto focale per foto e video nei formati ritagliati
+- Backup/ripristino delle impostazioni in JSON; "Nuovo progetto" conserva logo e avatar del brand
+
 ## v1.4.0 — 2026-11-10 · "Sottotitoli AI"
 - ✨ Sottotitoli automatici con Whisper (transformers.js) eseguito sul dispositivo: nessun upload, nessun credito
 - Modelli Tiny / Base / Small / Turbo (WebGPU), 6 lingue + rilevamento automatico

@@ -6,11 +6,9 @@ Versioni nel formato **Major.Minor.Patch**. Questo file è la coda dei lavori: s
 - **v1.0 – v1.2** Montaggio foto/video, transizioni, musica, Iscriviti animato, logo, intro, finale, collage
 - **v1.3** Editor vero: dividi, velocità, livelli (testi/emoji/PNG), voce fuori campo, export veloce WebCodecs
 - **v1.4** Sottotitoli automatici in locale (Whisper), stili animati, SRT, taglio dei silenzi
+- **v1.5** Impostazioni a schede, kit del brand, profili social, export multiplo 16:9/9:16/1:1/4:5, punto focale
 
 ## In coda
-- **v1.5 – Un progetto, tutti i formati + Kit del brand**
-  Export multiplo 16:9 (YouTube) + 9:16 (Shorts/Reels/TikTok) con inquadratura adattata.
-  Kit del brand salvato una volta: logo, colori, font, intro e finale, avatar, handle.
 - **v1.6 – Social Kit** (pensato come modulo condiviso, poi entra nel Hub)
   - Un "contenuto" = video + post per ogni piattaforma (YouTube, Shorts, Instagram post/Reel/Storia, TikTok, Facebook)
   - Regole per piattaforma con controlli in tempo reale: lunghezza testi, hashtag, formato/durata del video

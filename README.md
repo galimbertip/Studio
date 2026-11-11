@@ -13,7 +13,8 @@ Web app per creare video YouTube (travel blog e non solo) da foto, video e music
 - Colonna sonora con fade, loop e abbassamento automatico
 - Pulsante **Iscriviti** animato e sonoro (Mi piace → Iscritto → campanella)
 - Logo del canale in sovraimpressione
-- Formati 16:9, Shorts 9:16, 1:1 fino a 1440p · export veloce MP4 (WebCodecs) + copertina PNG
+- Formati 16:9, 9:16 (Shorts/Reels/TikTok), 1:1 e 4:5 esportati insieme in un clic, fino a 1440p
+- Impostazioni a schede con kit del brand e profili social · export veloce MP4 (WebCodecs) + copertina PNG
 
 ## Uso in locale
 Scarica `index.html` e aprilo con Chrome o Edge: funziona anche offline.
